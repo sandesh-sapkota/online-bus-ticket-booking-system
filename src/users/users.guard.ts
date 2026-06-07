@@ -24,20 +24,30 @@ export class AuthGuard implements CanActivate {
     // convert the context to http
     const request = context.switchToHttp().getRequest();
 
-    // the raw token cookie value after spliting from the token suffix
-    const rawTokenCookieValue: string | undefined =
-      request.headers.cookie?.split('=')[1];
+    const authHeader = request.headers.authorization;
+    const rawTokenCookieValue: string | undefined = request.headers.cookie
+      ? Object.fromEntries(
+          request.headers.cookie.split('; ').map((cookie) => cookie.split('=')),
+        )['token']
+      : undefined;
+    let tokenValue: string | undefined;
 
-    if (!rawTokenCookieValue) {
+    if (authHeader?.startsWith('Bearer ')) {
+      tokenValue = authHeader.split(' ')[1];
+    } else if (rawTokenCookieValue) {
+      tokenValue = rawTokenCookieValue;
+    }
+
+    if (!tokenValue) {
       throw new UnauthorizedException({
         status: 'error',
         message: 'Unauthorized, login first.',
       });
     }
 
-    // validation of the raw token cookie value after spliting from the token suffix
+    // validation of the raw token cookie or authorization header token
     const tokenCookieValidation = jwt.verify(
-      rawTokenCookieValue,
+      tokenValue,
       process.env.JWT_SECRET_KEY as string,
     ) as JWTInterface;
 

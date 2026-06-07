@@ -55,6 +55,7 @@ export class UsersController {
       .json({
         status: 'success',
         message: 'User has been logged in.',
+        token,
       });
   }
 

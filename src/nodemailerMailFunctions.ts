@@ -71,10 +71,11 @@ const SendMailToVerifyEmailWithCode = async (
 
     return hashedRandomSixDigitCode;
   } catch (error) {
-    throw new Error(
-      'Something went wrong in SendMailToVerifyEmailWithCode function: ',
-      error as undefined,
-    );
+    const message = `Something went wrong in SendMailToVerifyEmailWithCode function: ${
+      error instanceof Error ? error.message : JSON.stringify(error)
+    }`;
+    console.error(message);
+    throw new Error(message);
   }
 };
 

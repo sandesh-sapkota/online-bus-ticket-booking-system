@@ -18,7 +18,8 @@ export default function Login() {
     setError('');
     
     try {
-      await userAPI.login(formData);
+      const response = await userAPI.login(formData);
+      localStorage.setItem('token', response.data.token);
       const profileRes = await userAPI.getProfile();
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('user', JSON.stringify(profileRes.data.data.user));
