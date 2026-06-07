@@ -2,21 +2,26 @@
 
 ### Project Idea Summary
 
-This project is a learning project I built to explore the requirements and functionality of a bus ticket booking platform. It includes multiple API sections, such as /admins, which contains all admin-related APIs, /users, which handles user and authentication APIs, /bookings, which covers all the bus seats bookings APIs. For more detailed information refer to the Postman API documentation.
+This project is a learning project I built to explore the requirements and functionality of a bus ticket booking platform. It includes multiple API sections, such as `/admins`, which contains all admin-related APIs, `/users`, which handles user and authentication APIs, and `/bookings`, which covers all bus seat booking APIs. For more detailed information refer to the Postman API documentation.
+
+---
 
 ### Tech Stack Summary
 
-This project runs on the latest versions of these listed dependency and their versions listed in the project's `package.json` file.
+This project runs on the latest versions of the listed dependencies defined in the project's `package.json` file.
 
-- **Package Manager:** Yarn
-- **Backend:** TypeScript, NestJs
-- **Database:** PrismaORM, PostgreSQL
-- **Cloud Storage:** Cloudinary
-- **Data Validation:** Zod
-- **Email Sender:** Nodemailer
-- **PDF Builder:** PDFKit
-- **Encoding & Decoding:** Argon
-- **Authentication:** Session based JWT
+- **Package Manager:** npm  
+- **Frontend:** TypeScript, ReactJs 
+- **Backend:** TypeScript, NestJS 
+- **Database:** Prisma ORM, PostgreSQL  
+- **Cloud Storage:** Cloudinary  
+- **Data Validation:** Zod  
+- **Email Sender:** Nodemailer  
+- **PDF Builder:** PDFKit  
+- **Encoding & Decoding:** Argon2  
+- **Authentication:** Session-based JWT  
+
+---
 
 ### How to Use
 
@@ -28,37 +33,27 @@ cd bus-ticket-booking-portal
 ```
 
 #### 2. Install Dependencies
-
 ```bash
-yarn install
+npm install
 ```
 
 #### 3. Set Up ENV Variables
 
-- Copy all the variables from the `.env.sample`, paste them in `.env` file after creating one and supply all the required information.
+```bash
+Copy all variables from .env.sample
+Create a new .env file in the root directory
+Paste all variables and fill in required values
+```
 
-#### 4. Set Up PrismaORM
+#### 4. Set Up Prisma ORM
 
-- After providing database credentials run the following command:
+After configuring database credentials, run:
 
 ```bash
 npx prisma migrate dev
 ```
 
 #### 5. Run the Project
-
 ```bash
-yarn run start:dev
-```
-
-### Documentation
-
-As a reference guide for the project I had built some documentation for the project which is included in this README file.
-
-#### System Designs
-
-#### Postman API Documentation
-
-- The prototyping, testing and documentation of all the APIs in this project were done by me in Postman. This documentation will include the request format and expected response, with all possible error responses explained. The link is given below:
-
-- https://documenter.getpostman.com/view/32203863/2sB3WjyNnB
+ npm run start:dev
+ ```
