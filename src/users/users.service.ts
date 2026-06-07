@@ -149,11 +149,22 @@ export class UsersService {
         validatedData.data.password,
       );
 
-      // upload the profile picture image to cloudinary
-      const uploadedImage: uploadedImageInterface =
-        await cloudinaryConfig.uploader.upload(
-          validatedData.data.profilePicture.path,
-        );
+      // upload the profile picture image to cloudinary only if a file object was provided
+      let profilePictureUrl =
+        'https://res.cloudinary.com/demo/image/upload/v1/default-avatar.png';
+
+      if (
+        validatedData.data.profilePicture &&
+        typeof validatedData.data.profilePicture === 'object'
+      ) {
+        const uploadedImage: uploadedImageInterface =
+          await cloudinaryConfig.uploader.upload(
+            validatedData.data.profilePicture.path,
+          );
+        profilePictureUrl = uploadedImage.secure_url;
+      } else if (typeof validatedData.data.profilePicture === 'string') {
+        profilePictureUrl = validatedData.data.profilePicture;
+      }
 
       //save the user by creating a new document
       await this.prisma.user.create({
@@ -162,7 +173,7 @@ export class UsersService {
           lastName: validatedData.data.lastName,
           email: validatedData.data.email,
           phoneNumber: validatedData.data.phoneNumber,
-          profilePicture: uploadedImage.secure_url,
+          profilePicture: profilePictureUrl,
           role: 'PASSENGER',
           password: hashedValidatedPassword,
         },

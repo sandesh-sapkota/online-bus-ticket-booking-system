@@ -6,18 +6,21 @@ const getBusesValidatorClient = z.object({
     .string({
       invalid_type_error: 'Origin must be a string.',
     })
-    .min(3, 'Origin must be of at least 3 characters.'),
+    .min(3, 'Origin must be of at least 3 characters.')
+    .optional(),
 
   destination: z
     .string({
       invalid_type_error: 'Destination must be a string.',
     })
-    .min(3, 'Destination must be of at least 3 characters.'),
+    .min(3, 'Destination must be of at least 3 characters.')
+    .optional(),
 
-  journeyDate: z.coerce.date({
-    required_error: 'Journey date is required.',
-    invalid_type_error: 'Journey date must be a date.',
-  }),
+  journeyDate: z
+    .coerce.date({
+      invalid_type_error: 'Journey date must be a date.',
+    })
+    .optional(),
 
   busType: z
     .enum(['AC_BUS', 'NONE_AC_BUS', 'SLEEPER_BUS'], {

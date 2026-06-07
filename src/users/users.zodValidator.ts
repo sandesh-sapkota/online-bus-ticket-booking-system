@@ -30,52 +30,58 @@ const createUserValidator = z.object({
       required_error: 'Phone number is required.',
       invalid_type_error: 'Phone number must be a string.',
     })
-    .length(14, 'A phone number must be 14 characters.'),
+    .min(10, 'Phone number must be at least 10 characters.')
+    .max(16, 'Phone number can not be more than 16 characters.'),
 
-  profilePicture: z.object({
-    originalName: z.string({
-      required_error: 'Image is invalid.',
-      invalid_type_error: 'Image is invalid.',
-    }),
-    encoding: z.string({
-      required_error: 'Image is invalid.',
-      invalid_type_error: 'Image is invalid.',
-    }),
-    busBoyMimeType: z
-      .string({
-        required_error: 'Image is invalid.',
-        invalid_type_error: 'Image is invalid.',
-      })
-      .startsWith('image/', { message: 'Image is invalid.' }),
-    path: z.string({
-      required_error: 'Image is invalid.',
-      invalid_type_error: 'Image is invalid.',
-    }),
-    size: z
-      .number({
-        required_error: 'Image is invalid.',
-        invalid_type_error: 'Image is invalid.',
-      })
-      .max(5 * 1024 * 1024, {
-        message: 'Image can not be more than 5 megabites.',
-      }),
-    fileType: z.object({
-      ext: z
-        .string({
+  profilePicture: z
+    .union([
+      z.object({
+        originalName: z.string({
           required_error: 'Image is invalid.',
           invalid_type_error: 'Image is invalid.',
-        })
-        .refine((val) => ['png', 'jpg', 'jpeg', 'webp'].includes(val), {
-          message: 'Image type is invalid.',
         }),
-      mime: z
-        .string({
+        encoding: z.string({
           required_error: 'Image is invalid.',
           invalid_type_error: 'Image is invalid.',
-        })
-        .startsWith('image/', { message: 'Image is invalid.' }),
-    }),
-  }),
+        }),
+        busBoyMimeType: z
+          .string({
+            required_error: 'Image is invalid.',
+            invalid_type_error: 'Image is invalid.',
+          })
+          .startsWith('image/', { message: 'Image is invalid.' }),
+        path: z.string({
+          required_error: 'Image is invalid.',
+          invalid_type_error: 'Image is invalid.',
+        }),
+        size: z
+          .number({
+            required_error: 'Image is invalid.',
+            invalid_type_error: 'Image is invalid.',
+          })
+          .max(5 * 1024 * 1024, {
+            message: 'Image can not be more than 5 megabites.',
+          }),
+        fileType: z.object({
+          ext: z
+            .string({
+              required_error: 'Image is invalid.',
+              invalid_type_error: 'Image is invalid.',
+            })
+            .refine((val) => ['png', 'jpg', 'jpeg', 'webp'].includes(val), {
+              message: 'Image type is invalid.',
+            }),
+          mime: z
+            .string({
+              required_error: 'Image is invalid.',
+              invalid_type_error: 'Image is invalid.',
+            })
+            .startsWith('image/', { message: 'Image is invalid.' }),
+        }),
+      }),
+      z.string().url(),
+    ])
+    .optional(),
 
   password: z
     .string({
@@ -99,7 +105,8 @@ const loginValidator = z
       .string({
         invalid_type_error: 'Phone number must be a string.',
       })
-      .length(14, 'A phone number must be 14 characters.')
+      .min(10, 'Phone number must be at least 10 characters.')
+      .max(16, 'Phone number can not be more than 16 characters.')
       .optional(),
 
     password: z

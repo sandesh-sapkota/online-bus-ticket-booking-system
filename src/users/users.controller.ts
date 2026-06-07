@@ -28,10 +28,9 @@ import { AuthGuard, customExpressInterface } from './users.guard';
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  // setting up a create user controller function with a custom success status, form data initialization decorator with a declaration of using file system based image loading
+  // setting up a create user controller function with a custom success status
   @Post()
   @HttpCode(201)
-  @FormDataRequest({ storage: FileSystemStoredFile })
   async createUser(
     @Body() requestBody: typeof createUserValidator,
   ): Promise<{ status: string; message: string }> {
@@ -45,10 +44,18 @@ export class UsersController {
     @Res() response: Response,
   ): Promise<Response> {
     const token = await this.usersService.loginUserService(requestBody);
-    return response.status(200).cookie('token', token).json({
-      status: 'success',
-      message: 'User has been logged in.',
-    });
+    return response
+      .status(200)
+      .cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'none',
+        secure: false,
+        maxAge: 1000 * 60 * 60 * 24 * 30,
+      })
+      .json({
+        status: 'success',
+        message: 'User has been logged in.',
+      });
   }
 
   // the verify email route that will verify a client's code to mark them as verified after providing server side generate 6 digit code also sent to their email

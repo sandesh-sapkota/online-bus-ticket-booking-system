@@ -83,6 +83,9 @@ export class BookingsService {
   ): Promise<{
     status: string;
     message: string;
+    data: {
+      bookingId: string;
+    };
   }> {
     // validate the request body recieved form the controller
     const validatedData = createBookingValidator.safeParse(requestBody);
@@ -237,6 +240,9 @@ export class BookingsService {
         status: 'success',
         message:
           'Your selected seats has been booked, please check your email for booking details.',
+        data: {
+          bookingId: createdBooking.id,
+        },
       };
     } catch (error) {
       throw new InternalServerErrorException({

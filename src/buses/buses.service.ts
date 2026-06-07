@@ -82,28 +82,31 @@ export class BusesService {
       });
     }
 
-    // find the route docuemnt from the provided origin and destination
-    const checkRouteExists: Route | null = await this.prisma.route.findFirst({
-      where: {
-        origin: validatedData.data.origin,
-        destination: validatedData.data.destination,
-      },
-    });
+    let foundSchedules: Schedule[] | null = [];
 
-    if (!checkRouteExists) {
-      throw new NotFoundException({
-        status: 'error',
-        message: 'Invalid route provided or route does not exist yet.',
+    if (validatedData.data.origin && validatedData.data.destination) {
+      const checkRouteExists: Route | null = await this.prisma.route.findFirst({
+        where: {
+          origin: validatedData.data.origin,
+          destination: validatedData.data.destination,
+        },
       });
-    }
 
-    // retrieve the schedule from the found route
-    const foundSchedules: Schedule[] | null =
-      await this.prisma.schedule.findMany({
+      if (!checkRouteExists) {
+        throw new NotFoundException({
+          status: 'error',
+          message: 'Invalid route provided or route does not exist yet.',
+        });
+      }
+
+      foundSchedules = await this.prisma.schedule.findMany({
         where: {
           routeId: checkRouteExists.id,
         },
       });
+    } else {
+      foundSchedules = await this.prisma.schedule.findMany();
+    }
 
     try {
       // build up the query filter that will be used in the prisma filtering
@@ -129,11 +132,17 @@ export class BusesService {
         }),
       );
 
+      const uniqueBuses = foundBuses.filter(
+        (foundBus, index, self) =>
+          foundBus &&
+          self.findIndex((bus) => bus?.id === foundBus.id) === index,
+      );
+
       return {
         status: 'success',
-        message: `${foundBuses.length} buses have been found based on your options.`,
+        message: `${uniqueBuses.length} buses have been found based on your options.`,
         data: await Promise.all(
-          foundBuses.map(async (foundBus) => {
+          uniqueBuses.map(async (foundBus) => {
             //retrieve the bus's from fetched bus not the original schedule array as it may hold unnecerry scheudles after bus filteration
             const retrievedSchedule: Schedule | null =
               await this.prisma.schedule.findFirst({
@@ -174,6 +183,7 @@ export class BusesService {
 
             return {
               busId: foundBus?.id ?? null,
+              scheduleId: retrievedSchedule?.id ?? null,
               busType: foundBus?.busType ?? null,
               busClass: foundBus?.class ?? null,
               farePerTicket: foundBus?.farePerTicket ?? null,
