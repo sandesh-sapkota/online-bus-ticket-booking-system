@@ -1,4 +1,4 @@
-# Bus Ticket Booking Portal
+# Bus Ticket Booking System
 
 ### Project Idea Summary
 
@@ -28,8 +28,8 @@ This project runs on the latest versions of the listed dependencies defined in t
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/nia3zzz/bus-ticket-booking-portal
-cd bus-ticket-booking-portal
+git clone https://github.com/sandesh-sapkota/online-bus-ticket-booking-system
+cd online-bus-ticket-booking-system
 ```
 
 #### 2. Install Dependencies
