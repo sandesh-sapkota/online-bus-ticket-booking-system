@@ -61,9 +61,52 @@ export interface GetBusOutputDataPropertyClientInterface {
   createdAt: Date | null;
 }
 
+// data type for a single available route returned to the public client
+export interface GetRoutesOutputDataPropertyClientInterface {
+  routeId: string;
+  origin: string;
+  destination: string;
+  distanceInKm: number;
+  estimatedTimeInMin: number;
+}
+
 @Injectable()
 export class BusesService {
   constructor(private prisma: PrismaService) {}
+
+  // returns the distinct routes that currently have at least one schedule,
+  // so the client can offer real, bookable origin/destination options
+  async getRoutesService(): Promise<{
+    status: string;
+    message: string;
+    data: GetRoutesOutputDataPropertyClientInterface[];
+  }> {
+    const routes = await this.prisma.route.findMany({
+      where: { Schedule: { some: {} } },
+      orderBy: [{ origin: 'asc' }, { destination: 'asc' }],
+    });
+
+    // dedupe by origin + destination (Route has no unique constraint on the pair)
+    const seen = new Set<string>();
+    const unique = routes.filter((route) => {
+      const key = `${route.origin.toLowerCase()}__${route.destination.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return {
+      status: 'success',
+      message: `${unique.length} routes are available.`,
+      data: unique.map((route) => ({
+        routeId: route.id,
+        origin: route.origin,
+        destination: route.destination,
+        distanceInKm: route.distanceInKm,
+        estimatedTimeInMin: route.estimatedTimeInMin,
+      })),
+    };
+  }
 
   // defining a controller function for retriving a list of buses based on provided client side queries
   async getBusesService(requestQueries: any): Promise<{
@@ -87,8 +130,11 @@ export class BusesService {
     if (validatedData.data.origin && validatedData.data.destination) {
       const checkRouteExists: Route | null = await this.prisma.route.findFirst({
         where: {
-          origin: validatedData.data.origin,
-          destination: validatedData.data.destination,
+          origin: { equals: validatedData.data.origin, mode: 'insensitive' },
+          destination: {
+            equals: validatedData.data.destination,
+            mode: 'insensitive',
+          },
         },
       });
 

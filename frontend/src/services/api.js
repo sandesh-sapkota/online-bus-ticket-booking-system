@@ -79,6 +79,8 @@ export const userAPI = {
 
 // ---- Bus APIs ----
 export const busAPI = {
+  // Public list of available (bookable) routes.
+  getRoutes: () => api.get('/buses/routes'),
   // Public list. Optional filters: { origin, destination, busType, class, journeyDate }
   getAllBuses: (params = {}) => api.get('/buses/buses', { params }),
   // Authenticated detail for a schedule on a specific date.

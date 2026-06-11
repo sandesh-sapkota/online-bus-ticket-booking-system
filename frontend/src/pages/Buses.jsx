@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { busAPI, getApiError } from '../services/api';
 import { Spinner } from '../components/Spinner';
@@ -32,6 +32,7 @@ const emptyFilters = { origin: '', destination: '', busType: '', class: '' };
 
 export default function Buses() {
   const [buses, setBuses] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState(emptyFilters);
@@ -60,9 +61,40 @@ export default function Buses() {
     }
   }, []);
 
+  // Load the available routes once so the From/To selects only offer real options.
   useEffect(() => {
+    (async () => {
+      try {
+        const res = await busAPI.getRoutes();
+        setRoutes(res?.data?.data ?? []);
+      } catch {
+        // Non-fatal: the page still works with free filtering disabled.
+        setRoutes([]);
+      }
+    })();
     fetchBuses();
   }, [fetchBuses]);
+
+  // Distinct origins, and destinations valid for the chosen origin.
+  const origins = useMemo(
+    () => [...new Set(routes.map((r) => r.origin))].sort(),
+    [routes],
+  );
+  const destinations = useMemo(() => {
+    const pool = filters.origin ? routes.filter((r) => r.origin === filters.origin) : routes;
+    return [...new Set(pool.map((r) => r.destination))].sort();
+  }, [routes, filters.origin]);
+
+  const handleOriginChange = (e) => {
+    const origin = e.target.value;
+    setFilters((f) => {
+      // Reset destination if it's no longer valid for the new origin.
+      const stillValid =
+        !f.destination ||
+        routes.some((r) => r.origin === origin && r.destination === f.destination);
+      return { ...f, origin, destination: stillValid ? f.destination : '' };
+    });
+  };
 
   const handleChange = (e) => setFilters({ ...filters, [e.target.name]: e.target.value });
 
@@ -74,6 +106,12 @@ export default function Buses() {
   const handleReset = () => {
     setFilters(emptyFilters);
     fetchBuses(emptyFilters);
+  };
+
+  const applyRoute = (route) => {
+    const next = { ...filters, origin: route.origin, destination: route.destination };
+    setFilters(next);
+    fetchBuses(next);
   };
 
   const goToBooking = (scheduleId) => {
@@ -89,6 +127,25 @@ export default function Buses() {
           <p className="mt-1 text-muted">Search routes and pick a seat that suits your journey.</p>
         </div>
 
+        {/* Popular routes */}
+        {routes.length > 0 && (
+          <div className="mb-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">Available routes</p>
+            <div className="flex flex-wrap gap-2">
+              {routes.slice(0, 8).map((r) => (
+                <button
+                  key={r.routeId}
+                  type="button"
+                  onClick={() => applyRoute(r)}
+                  className="badge-brand hover:opacity-80"
+                >
+                  {r.origin} → {r.destination}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Search & filters */}
         <form onSubmit={handleSearch} className="card-pad mb-8">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -96,27 +153,39 @@ export default function Buses() {
               <label className="label" htmlFor="origin">
                 From
               </label>
-              <input
+              <select
                 id="origin"
                 name="origin"
                 value={filters.origin}
-                onChange={handleChange}
+                onChange={handleOriginChange}
                 className="input-field"
-                placeholder="Origin city"
-              />
+              >
+                <option value="">Any origin</option>
+                {origins.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="label" htmlFor="destination">
                 To
               </label>
-              <input
+              <select
                 id="destination"
                 name="destination"
                 value={filters.destination}
                 onChange={handleChange}
                 className="input-field"
-                placeholder="Destination city"
-              />
+              >
+                <option value="">Any destination</option>
+                {destinations.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="label" htmlFor="busType">
@@ -148,7 +217,7 @@ export default function Buses() {
             <button type="button" onClick={handleReset} className="btn-secondary">
               Reset
             </button>
-            <p className="self-center text-xs text-faint">Tip: enter both From and To to filter by route.</p>
+            <p className="self-center text-xs text-faint">Pick both From and To to filter by route.</p>
           </div>
         </form>
 
@@ -168,7 +237,10 @@ export default function Buses() {
               🚌
             </div>
             <p className="text-lg font-semibold text-fg">No buses found</p>
-            <p className="mt-1 text-muted">Try adjusting your search filters and search again.</p>
+            <p className="mt-1 text-muted">Try a different route or clear the filters.</p>
+            <button onClick={handleReset} className="btn-secondary mt-5">
+              Clear filters
+            </button>
           </div>
         ) : (
           <div className="grid gap-4">
