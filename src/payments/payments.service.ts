@@ -118,7 +118,19 @@ export class PaymentsService {
       data: { status: 'PAID' },
     });
 
-    // Best-effort ticket generation + email. Never block a captured payment.
+    // Fire-and-forget ticket + email so a slow/misconfigured Cloudinary or SMTP
+    // can never block (or fail) a captured payment. The response returns now.
+    void this.generateTicketAndEmail(user, booking, createPayment);
+
+    return createPayment.id;
+  }
+
+  // Background ticket PDF generation + email. Best-effort; never throws.
+  private async generateTicketAndEmail(
+    user: User,
+    booking: Booking,
+    createPayment: Payment,
+  ): Promise<void> {
     try {
       const retrievedBookedSeats: BookedSeat | null =
         await this.prisma.bookedSeat.findFirst({
@@ -201,8 +213,6 @@ export class PaymentsService {
         error,
       );
     }
-
-    return createPayment.id;
   }
 
   // ---- Khalti: initiate a payment ---------------------------------------

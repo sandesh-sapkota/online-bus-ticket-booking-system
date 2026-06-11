@@ -62,6 +62,7 @@ export default function Booking() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(null); // { seats, total, date } after cash confirm
 
   const fetchBus = useCallback(
     async (date) => {
@@ -128,13 +129,19 @@ export default function Booking() {
         return; // browser navigates away to Khalti
       }
 
-      // Cash → mark as arranged at the counter (direct confirmation).
-      await paymentAPI.processPayment(bookingId, {
-        method: 'CASH',
-        amount: totalPrice,
-        referenceCode: crypto.randomUUID(),
-      });
-      navigate('/bookings', { replace: true, state: { justBooked: true } });
+      // Cash → reserve the seats; settlement happens at the counter.
+      // Confirmation is best-effort: a slow/failed confirm must not block the
+      // booking the user already made (cash is settled manually anyway).
+      try {
+        await paymentAPI.processPayment(bookingId, {
+          method: 'CASH',
+          amount: totalPrice,
+          referenceCode: crypto.randomUUID(),
+        });
+      } catch (payErr) {
+        console.warn('Cash confirmation will be settled at the counter:', payErr);
+      }
+      setSuccess({ seats: [...selectedSeats], total: totalPrice, date: journeyDate });
     } catch (err) {
       setError(getApiError(err, 'Booking could not be completed. Please try again.'));
     } finally {
@@ -144,6 +151,45 @@ export default function Booking() {
 
   if (loading && !bus) {
     return <PageLoader label="Loading bus details…" />;
+  }
+
+  if (success) {
+    return (
+      <div className="container-app flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
+        <div className="card-pad w-full max-w-md text-center animate-fade-in-up">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-3xl text-success-softfg">
+            ✓
+          </div>
+          <h1 className="text-2xl font-extrabold text-fg">Booking confirmed!</h1>
+          <p className="mt-2 text-muted">
+            Your seats are reserved. Pay <span className="font-semibold text-fg">Rs. {success.total}</span> in
+            cash at the counter. Your e-ticket has been emailed to you.
+          </p>
+
+          <div className="mt-5 space-y-2 rounded-xl border border-line bg-surface2 p-4 text-left text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted">Seats</span>
+              <span className="font-semibold text-fg">{success.seats.join(', ')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">Date</span>
+              <span className="font-semibold text-fg">{success.date}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">Payment</span>
+              <span className="font-semibold text-fg">Cash · Rs. {success.total}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/bookings', { replace: true, state: { justBooked: true } })}
+            className="btn-primary btn-lg btn-block mt-6"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!bus) {

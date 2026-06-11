@@ -6,9 +6,13 @@ This project is a learning project I built to explore the requirements and funct
 
 ---
 
-![alt text]({02331FCA-3482-4D78-AB04-F2B5C23C02F7}.png)
+![alt text]({34800085-BED9-43C0-8594-CB4B32E9AD17}.png)
 
 ![alt text]({2DE70D2A-C894-4E97-84D4-02EFD0CCCBE8}.png)
+
+![alt text]({9C3A4C0C-C277-4244-A05A-7C2C4B251054}.png)
+
+![alt text]({52B165A8-2048-4FCB-9A92-6704089C803B}.png)
 
 ### Tech Stack Summary
 
