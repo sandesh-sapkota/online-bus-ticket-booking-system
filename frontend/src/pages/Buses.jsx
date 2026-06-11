@@ -1,157 +1,231 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { busAPI } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { busAPI, getApiError } from '../services/api';
+import { Spinner } from '../components/Spinner';
+
+const BUS_TYPE_LABELS = {
+  AC_BUS: 'AC',
+  NONE_AC_BUS: 'Non-AC',
+  SLEEPER_BUS: 'Sleeper',
+};
+
+const CLASS_LABELS = {
+  ECONOMY: 'Economy',
+  BUSINESS: 'Business',
+  FIRSTCLASS: 'First Class',
+};
+
+const formatDeparture = (value) => {
+  if (!value) return 'Schedule TBA';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return 'Schedule TBA';
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const emptyFilters = { origin: '', destination: '', busType: '', class: '' };
 
 export default function Buses() {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({
-    search: '',
-    type: 'ALL',
-    class: 'ALL',
-  });
+  const [filters, setFilters] = useState(emptyFilters);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBuses();
-  }, []);
-
-  const fetchBuses = async () => {
+  const fetchBuses = useCallback(async (activeFilters = emptyFilters) => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      const response = await busAPI.getAllBuses();
-      setBuses(response.data.data ?? []);
+      const params = {};
+      // The backend only filters by route when BOTH origin and destination are set.
+      if (activeFilters.origin.trim() && activeFilters.destination.trim()) {
+        params.origin = activeFilters.origin.trim();
+        params.destination = activeFilters.destination.trim();
+      }
+      if (activeFilters.busType) params.busType = activeFilters.busType;
+      if (activeFilters.class) params.class = activeFilters.class;
+
+      const res = await busAPI.getAllBuses(params);
+      setBuses(res?.data?.data ?? []);
     } catch (err) {
-      setError('Failed to load buses');
-      console.error(err);
+      setError(getApiError(err, 'Failed to load buses.'));
+      setBuses([]);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchBuses();
+  }, [fetchBuses]);
+
+  const handleChange = (e) => setFilters({ ...filters, [e.target.name]: e.target.value });
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchBuses(filters);
   };
 
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
+  const handleReset = () => {
+    setFilters(emptyFilters);
+    fetchBuses(emptyFilters);
   };
 
-  const filteredBuses = buses.filter((bus) => {
-    return (
-      (filters.type === 'ALL' || bus.busType === filters.type) &&
-      (filters.class === 'ALL' || bus.busClass === filters.class) &&
-      (filters.search === '' || 
-        bus.busRegistrationNumber?.toLowerCase().includes(filters.search.toLowerCase()))
-    );
-  });
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-3xl">⏳ Loading buses...</div>
-      </div>
-    );
-  }
+  const goToBooking = (scheduleId) => {
+    if (!scheduleId) return;
+    navigate(`/booking/${scheduleId}`);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-4xl font-bold text-gray-800 mb-8">Available Buses</h1>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input
-              type="text"
-              name="search"
-              placeholder="Search by registration..."
-              value={filters.search}
-              onChange={handleFilterChange}
-              className="input-field"
-            />
-            <select
-              name="type"
-              value={filters.type}
-              onChange={handleFilterChange}
-              className="input-field"
-            >
-              <option value="ALL">All Types</option>
-              <option value="AC_BUS">AC Bus</option>
-              <option value="NONE_AC_BUS">Non-AC Bus</option>
-              <option value="SLEEPER_BUS">Sleeper Bus</option>
-            </select>
-            <select
-              name="class"
-              value={filters.class}
-              onChange={handleFilterChange}
-              className="input-field"
-            >
-              <option value="ALL">All Classes</option>
-              <option value="ECONOMY">Economy</option>
-              <option value="BUSINESS">Business</option>
-              <option value="FIRSTCLASS">First Class</option>
-            </select>
-            <button
-              onClick={fetchBuses}
-              className="btn-primary"
-            >
-              🔄 Refresh
-            </button>
-          </div>
+    <div className="bg-ink-50 py-10">
+      <div className="container-app">
+        <div className="mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Find your bus</h1>
+          <p className="mt-1 text-ink-500">Search routes and pick a seat that suits your journey.</p>
         </div>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-8">
-            {error}
+        {/* Search & filters */}
+        <form onSubmit={handleSearch} className="card-pad mb-8">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="label" htmlFor="origin">
+                From
+              </label>
+              <input
+                id="origin"
+                name="origin"
+                value={filters.origin}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Origin city"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="destination">
+                To
+              </label>
+              <input
+                id="destination"
+                name="destination"
+                value={filters.destination}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Destination city"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="busType">
+                Bus type
+              </label>
+              <select id="busType" name="busType" value={filters.busType} onChange={handleChange} className="input-field">
+                <option value="">All types</option>
+                <option value="AC_BUS">AC</option>
+                <option value="NONE_AC_BUS">Non-AC</option>
+                <option value="SLEEPER_BUS">Sleeper</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="class">
+                Class
+              </label>
+              <select id="class" name="class" value={filters.class} onChange={handleChange} className="input-field">
+                <option value="">All classes</option>
+                <option value="ECONOMY">Economy</option>
+                <option value="BUSINESS">Business</option>
+                <option value="FIRSTCLASS">First Class</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="submit" className="btn-primary">
+              Search buses
+            </button>
+            <button type="button" onClick={handleReset} className="btn-secondary">
+              Reset
+            </button>
+            <p className="self-center text-xs text-ink-400">
+              Tip: enter both From and To to filter by route.
+            </p>
+          </div>
+        </form>
+
+        {error && <div className="alert-error mb-6">{error}</div>}
+
+        {/* Results */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="flex flex-col items-center gap-3 text-ink-500">
+              <Spinner className="h-8 w-8 text-brand-600" />
+              <p className="text-sm font-medium">Loading buses…</p>
+            </div>
+          </div>
+        ) : buses.length === 0 ? (
+          <div className="card-pad text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-2xl">
+              🚌
+            </div>
+            <p className="text-lg font-semibold text-ink-800">No buses found</p>
+            <p className="mt-1 text-ink-500">Try adjusting your search filters and search again.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            <p className="text-sm text-ink-500">{buses.length} bus{buses.length !== 1 ? 'es' : ''} available</p>
+            {buses.map((bus, idx) => {
+              const soldOut = (bus.ticketsLeft ?? 0) <= 0;
+              return (
+                <div
+                  key={bus.scheduleId || bus.busId || idx}
+                  className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between animate-fade-in-up"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="4" width="18" height="13" rx="2" />
+                        <path d="M3 10h18" strokeLinecap="round" />
+                        <circle cx="7.5" cy="20" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="16.5" cy="20" r="1.5" fill="currentColor" stroke="none" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="badge-brand">{BUS_TYPE_LABELS[bus.busType] ?? bus.busType ?? 'Bus'}</span>
+                        <span className="badge-gray">{CLASS_LABELS[bus.busClass] ?? bus.busClass ?? '—'}</span>
+                      </div>
+                      <p className="mt-1.5 text-sm text-ink-500">
+                        Departs · {formatDeparture(bus.estimatedDepurtureTimeDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <p className="text-xs uppercase tracking-wide text-ink-400">Seats left</p>
+                      <p className={`text-lg font-bold ${soldOut ? 'text-rose-500' : 'text-emerald-600'}`}>
+                        {soldOut ? 'Sold out' : bus.ticketsLeft}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs uppercase tracking-wide text-ink-400">Fare</p>
+                      <p className="text-lg font-bold text-ink-900">Rs. {bus.farePerTicket ?? '—'}</p>
+                    </div>
+                    <button
+                      onClick={() => goToBooking(bus.scheduleId)}
+                      disabled={soldOut || !bus.scheduleId}
+                      className="btn-primary"
+                    >
+                      {soldOut ? 'Unavailable' : 'Book now'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
-
-        {/* Bus List */}
-        <div className="grid gap-6">
-          {filteredBuses.length > 0 ? (
-            filteredBuses.map((bus) => (
-              <div key={bus.busId} className="card bg-white">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{bus.busRegistrationNumber}</h3>
-                    <p className="text-gray-600">
-                      🚌 {bus.busType?.replace('_', ' ')} • {bus.busClass}
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500">Fare Per Ticket</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      Rs. {bus.farePerTicket}
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500">Available Seats</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {bus.ticketsLeft ?? 'N/A'}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      if (!localStorage.getItem('isLoggedIn')) {
-                        navigate('/login');
-                      } else {
-                        navigate(`/booking/${bus.scheduleId}`);
-                      }
-                    }}
-                    className="btn-primary w-full"
-                  >
-                    Book Now
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-2xl text-gray-600">No buses found matching your filters</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

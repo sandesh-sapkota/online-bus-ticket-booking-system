@@ -1,267 +1,400 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { busAPI, bookingAPI, paymentAPI } from '../services/api';
+import { busAPI, bookingAPI, paymentAPI, getApiError } from '../services/api';
+import { Spinner, PageLoader } from '../components/Spinner';
+
+const BUS_TYPE_LABELS = {
+  AC_BUS: 'AC',
+  NONE_AC_BUS: 'Non-AC',
+  SLEEPER_BUS: 'Sleeper',
+};
+const CLASS_LABELS = {
+  ECONOMY: 'Economy',
+  BUSINESS: 'Business',
+  FIRSTCLASS: 'First Class',
+};
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+// The backend stores each booking's seats as an array of [seatNumber, label] pairs,
+// and returns bookedSeats as an array of those arrays. Walk it defensively and
+// collect every numeric seat number that is already taken.
+function extractTakenSeats(bookedSeats) {
+  const taken = new Set();
+  const walk = (node) => {
+    if (!Array.isArray(node)) return;
+    const isPair =
+      node.length === 2 &&
+      !Array.isArray(node[0]) &&
+      (typeof node[0] === 'string' || typeof node[0] === 'number') &&
+      !Number.isNaN(Number(node[0]));
+    if (isPair) {
+      taken.add(Number(node[0]));
+    } else {
+      node.forEach(walk);
+    }
+  };
+  walk(bookedSeats);
+  return taken;
+}
+
+function parseSeatNumbers(seats) {
+  if (!seats) return [];
+  const obj = typeof seats === 'string' ? JSON.parse(seats) : seats;
+  return Object.keys(obj)
+    .map(Number)
+    .filter((n) => !Number.isNaN(n))
+    .sort((a, b) => a - b);
+}
+
+const STEPS = ['Trip', 'Seats', 'Payment'];
 
 export default function Booking() {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
+
   const [bus, setBus] = useState(null);
+  const [journeyDate, setJourneyDate] = useState(todayStr());
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [journeyDate, setJourneyDate] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [bookingStep, setBookingStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('ONLINE');
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchBusDetails();
-  }, [scheduleId]);
+  const fetchBus = useCallback(
+    async (date) => {
+      if (!scheduleId) {
+        setError('Missing schedule identifier.');
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const res = await busAPI.getBus(scheduleId, date);
+        setBus(res?.data?.data ?? null);
+        // Reset any seats picked for a previous date.
+        setSelectedSeats([]);
+      } catch (err) {
+        setError(getApiError(err, 'Failed to load bus details.'));
+        setBus(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [scheduleId],
+  );
 
   useEffect(() => {
-    if (journeyDate) {
-      fetchBusDetails(journeyDate);
-    }
-  }, [journeyDate, scheduleId]);
+    fetchBus(journeyDate);
+  }, [fetchBus, journeyDate]);
 
-  const fetchBusDetails = async (date = new Date().toISOString().slice(0, 10)) => {
-    if (!scheduleId) {
-      setError('Missing schedule identifier for booking.');
-      setLoading(false);
-      return;
-    }
+  const seatNumbers = useMemo(() => parseSeatNumbers(bus?.seats), [bus]);
+  const takenSeats = useMemo(() => extractTakenSeats(bus?.bookedSeats), [bus]);
+  const farePerTicket = bus?.farePerTicket ?? 0;
+  const totalPrice = selectedSeats.length * farePerTicket;
 
-    try {
-      const response = await busAPI.getBus(scheduleId, date);
-      setBus(response.data.data);
-    } catch (err) {
-      setError('Failed to load bus details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSeatSelect = (seatNumber) => {
-    setSelectedSeats(prev =>
-      prev.includes(seatNumber)
-        ? prev.filter(s => s !== seatNumber)
-        : [...prev, seatNumber]
+  const toggleSeat = (seat) => {
+    if (takenSeats.has(seat)) return;
+    setSelectedSeats((prev) =>
+      prev.includes(seat) ? prev.filter((s) => s !== seat) : [...prev, seat].sort((a, b) => a - b),
     );
   };
 
-  const seatNumbers = bus?.seats
-    ? Object.keys(
-        typeof bus.seats === 'string' ? JSON.parse(bus.seats) : bus.seats,
-      )
-        .map(Number)
-        .sort((a, b) => a - b)
-    : [...Array(20).keys()].map((_, i) => i + 1);
+  const handleConfirmAndPay = async () => {
+    setError('');
+    if (!journeyDate) return setError('Please choose a journey date.');
+    if (selectedSeats.length === 0) return setError('Please select at least one seat.');
 
-  const totalPrice = selectedSeats.length * (bus?.farePerTicket || 0);
-
-  const handleBooking = async () => {
-    if (!journeyDate || selectedSeats.length === 0) {
-      setError('Please select date and seats');
-      return;
-    }
-
-    if (!scheduleId) {
-      setError('Booking identifier is missing.');
-      return;
-    }
-
+    setSubmitting(true);
     try {
-      setLoading(true);
-      const bookingData = {
+      // 1) Create the booking.
+      const bookingRes = await bookingAPI.createBooking({
         scheduleId,
         journeyDate,
         seats: selectedSeats,
-      };
+      });
+      const bookingId = bookingRes?.data?.data?.bookingId;
+      if (!bookingId) throw new Error('Booking did not return an id.');
 
-      const bookingRes = await bookingAPI.createBooking(bookingData);
-      const bookingId = bookingRes.data.data?.bookingId;
-
-      if (!bookingId) {
-        throw new Error('Booking did not return a booking id.');
-      }
-
-      const paymentRes = await paymentAPI.processPayment(bookingId, {
+      // 2) Complete payment. Amount must equal the server-side total; reference must be 36 chars.
+      await paymentAPI.processPayment(bookingId, {
         method: paymentMethod,
         amount: totalPrice,
         referenceCode: crypto.randomUUID(),
       });
 
-      alert('Booking confirmed! Check your email for ticket.');
-      navigate('/bookings');
+      navigate('/bookings', { replace: true, state: { justBooked: true } });
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Booking failed');
+      setError(getApiError(err, 'Booking could not be completed. Please try again.'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  if (loading && !bus) {
+    return <PageLoader label="Loading bus details…" />;
   }
 
   if (!bus) {
-    return <div className="flex justify-center items-center min-h-screen">Bus not found</div>;
+    return (
+      <div className="container-app py-16">
+        <div className="card-pad mx-auto max-w-lg text-center">
+          <p className="text-lg font-semibold text-ink-800">Bus unavailable</p>
+          <p className="mt-1 text-ink-500">{error || 'We could not load this bus.'}</p>
+          <button onClick={() => navigate('/buses')} className="btn-primary mt-5">
+            Back to buses
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">Book Your Tickets</h1>
+    <div className="bg-ink-50 py-10">
+      <div className="container-app max-w-4xl">
+        <button onClick={() => navigate('/buses')} className="btn-ghost mb-4 -ml-2">
+          ← All buses
+        </button>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Book your trip</h1>
+        <p className="mt-1 text-ink-500">
+          {bus.route?.origin && bus.route?.destination
+            ? `${bus.route.origin} → ${bus.route.destination}`
+            : 'Select your date and seats to continue.'}
+        </p>
 
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {[1, 2, 3].map(step => (
-            <button
-              key={step}
-              onClick={() => setBookingStep(step)}
-              className={`p-4 rounded-lg font-bold text-center ${
-                bookingStep === step
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-600'
-              }`}
-            >
-              Step {step}
-            </button>
+        {/* Stepper */}
+        <div className="my-6 flex items-center">
+          {STEPS.map((label, i) => (
+            <div key={label} className="flex flex-1 items-center last:flex-none">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition ${
+                    i <= step ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-500'
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className={`text-sm font-medium ${i <= step ? 'text-ink-900' : 'text-ink-400'}`}>
+                  {label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className={`mx-3 h-0.5 flex-1 ${i < step ? 'bg-brand-600' : 'bg-ink-200'}`} />
+              )}
+            </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Step 1: Bus Info */}
-          {bookingStep === 1 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Bus Details</h2>
-              <div className="space-y-4">
-                <p><strong>Registration:</strong> {bus.busRegistrationNumber}</p>
-                <p><strong>Type:</strong> {bus.busType}</p>
-                <p><strong>Class:</strong> {bus.busClass}</p>
-                <p><strong>Fare Per Ticket:</strong> Rs. {bus.farePerTicket}</p>
+        {error && <div className="alert-error mb-6">{error}</div>}
+
+        <div className="card-pad">
+          {/* Step 1: Trip + date */}
+          {step === 0 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-ink-900">Trip details</h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <Detail label="Type" value={BUS_TYPE_LABELS[bus.busType] ?? bus.busType} />
+                <Detail label="Class" value={CLASS_LABELS[bus.busClass] ?? bus.busClass} />
+                <Detail label="Reg. No." value={bus.busRegistrationNumber} />
+                <Detail label="Fare / seat" value={`Rs. ${farePerTicket}`} />
               </div>
-              <button
-                onClick={() => setBookingStep(2)}
-                className="mt-8 btn-primary"
-              >
-                Next: Select Seats →
-              </button>
+
+              {(bus.driver?.firstName || bus.route?.distanceinKm) && (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Detail
+                    label="Driver"
+                    value={[bus.driver?.firstName, bus.driver?.lastName].filter(Boolean).join(' ') || '—'}
+                  />
+                  <Detail label="Distance" value={bus.route?.distanceinKm ? `${bus.route.distanceinKm} km` : '—'} />
+                  <Detail
+                    label="Est. time"
+                    value={bus.route?.estimatedTimeInMIn ? `${bus.route.estimatedTimeInMIn} min` : '—'}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label" htmlFor="journeyDate">
+                  Journey date
+                </label>
+                <input
+                  id="journeyDate"
+                  type="date"
+                  min={todayStr()}
+                  value={journeyDate}
+                  onChange={(e) => setJourneyDate(e.target.value)}
+                  className="input-field max-w-xs"
+                />
+                <p className="mt-2 text-xs text-ink-400">Seat availability is shown for the selected date.</p>
+              </div>
+
+              <div className="flex justify-end">
+                <button onClick={() => setStep(1)} disabled={!journeyDate} className="btn-primary btn-lg">
+                  Choose seats →
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Step 2: Seat Selection */}
-          {bookingStep === 2 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Select Seats & Date</h2>
-              <div className="mb-6">
-                <label className="block font-bold mb-2">Journey Date</label>
-                <input
-                  type="date"
-                  value={journeyDate}
-                  onChange={(e) => setJourneyDate(e.target.value)}
-                  className="input-field"
-                />
+          {/* Step 2: Seats */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-ink-900">Select seats</h2>
+                {loading && <Spinner className="h-5 w-5 text-brand-600" />}
               </div>
 
-              <div className="mb-6">
-                <p className="font-bold mb-4">Available Seats</p>
-                <div className="grid grid-cols-6 gap-2">
-                  {seatNumbers.map((seatNumber) => (
-                    <button
-                      key={seatNumber}
-                      onClick={() => handleSeatSelect(seatNumber)}
-                      className={`p-3 rounded font-bold transition ${
-                        selectedSeats.includes(seatNumber)
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                      }`}
-                    >
-                      {seatNumber}
-                    </button>
-                  ))}
+              {/* Legend */}
+              <div className="flex flex-wrap gap-4 text-sm text-ink-600">
+                <Legend className="bg-white border border-ink-300" label="Available" />
+                <Legend className="bg-brand-600" label="Selected" />
+                <Legend className="bg-ink-200" label="Booked" />
+              </div>
+
+              {seatNumbers.length === 0 ? (
+                <p className="text-ink-500">No seat map available for this bus.</p>
+              ) : (
+                <div className="grid grid-cols-5 gap-2.5 sm:grid-cols-8">
+                  {seatNumbers.map((seat) => {
+                    const isTaken = takenSeats.has(seat);
+                    const isSelected = selectedSeats.includes(seat);
+                    return (
+                      <button
+                        key={seat}
+                        type="button"
+                        onClick={() => toggleSeat(seat)}
+                        disabled={isTaken}
+                        className={`aspect-square rounded-lg text-sm font-semibold transition ${
+                          isTaken
+                            ? 'cursor-not-allowed bg-ink-200 text-ink-400'
+                            : isSelected
+                              ? 'bg-brand-600 text-white shadow-sm'
+                              : 'border border-ink-300 bg-white text-ink-700 hover:border-brand-400 hover:bg-brand-50'
+                        }`}
+                      >
+                        {seat}
+                      </button>
+                    );
+                  })}
                 </div>
+              )}
+
+              <div className="flex flex-col gap-2 rounded-xl bg-ink-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-ink-600">
+                  {selectedSeats.length > 0 ? (
+                    <>
+                      Seats <span className="font-semibold text-ink-900">{selectedSeats.join(', ')}</span>
+                    </>
+                  ) : (
+                    'No seats selected yet.'
+                  )}
+                </p>
+                <p className="text-lg font-bold text-ink-900">Total: Rs. {totalPrice}</p>
               </div>
 
-              <p className="text-lg font-bold mb-4">
-                Selected: {selectedSeats.length} seats | Total: Rs. {totalPrice}
-              </p>
-
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setBookingStep(1)}
-                  className="btn-secondary flex-1"
-                >
+              <div className="flex justify-between gap-3">
+                <button onClick={() => setStep(0)} className="btn-secondary">
                   ← Back
                 </button>
-                <button
-                  onClick={() => setBookingStep(3)}
-                  className="btn-primary flex-1"
-                >
-                  Next: Payment →
+                <button onClick={() => setStep(2)} disabled={selectedSeats.length === 0} className="btn-primary">
+                  Continue to payment →
                 </button>
               </div>
             </div>
           )}
 
           {/* Step 3: Payment */}
-          {bookingStep === 3 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Payment</h2>
-              <div className="bg-gray-50 p-6 rounded-lg mb-6">
-                <p className="text-lg mb-2">
-                  <strong>Seats:</strong> {selectedSeats.join(', ')}
-                </p>
-                <p className="text-lg mb-2">
-                  <strong>Date:</strong> {journeyDate}
-                </p>
-                <p className="text-2xl font-bold text-green-600">
-                  Total: Rs. {totalPrice}
-                </p>
+          {step === 2 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-ink-900">Review & pay</h2>
+
+              <div className="space-y-3 rounded-xl border border-ink-100 bg-ink-50 p-5">
+                <Row label="Route" value={
+                  bus.route?.origin && bus.route?.destination
+                    ? `${bus.route.origin} → ${bus.route.destination}`
+                    : '—'
+                } />
+                <Row label="Date" value={journeyDate} />
+                <Row label="Seats" value={selectedSeats.join(', ')} />
+                <Row label="Passengers" value={`${selectedSeats.length}`} />
+                <div className="border-t border-ink-200 pt-3">
+                  <Row
+                    label="Total amount"
+                    value={`Rs. ${totalPrice}`}
+                    valueClass="text-xl font-extrabold text-brand-700"
+                  />
+                </div>
               </div>
 
-              <div className="mb-6">
-                <p className="font-bold mb-3">Payment Method</p>
-                <div className="space-y-3">
-                  {['ONLINE', 'CASH'].map(method => (
-                    <label key={method} className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={method}
-                        checked={paymentMethod === method}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="font-bold">{method}</span>
-                    </label>
+              <div>
+                <p className="label">Payment method</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {['ONLINE', 'CASH'].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPaymentMethod(m)}
+                      className={`rounded-xl border p-4 text-left transition ${
+                        paymentMethod === m
+                          ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
+                          : 'border-ink-200 hover:border-ink-300'
+                      }`}
+                    >
+                      <p className="font-semibold text-ink-900">{m === 'ONLINE' ? 'Online' : 'Cash'}</p>
+                      <p className="text-xs text-ink-500">
+                        {m === 'ONLINE' ? 'Pay securely now' : 'Pay at the counter'}
+                      </p>
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setBookingStep(2)}
-                  className="btn-secondary flex-1"
-                >
+              <div className="flex justify-between gap-3">
+                <button onClick={() => setStep(1)} disabled={submitting} className="btn-secondary">
                   ← Back
                 </button>
-                <button
-                  onClick={handleBooking}
-                  disabled={loading}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  {loading ? 'Processing...' : 'Complete Booking ✓'}
+                <button onClick={handleConfirmAndPay} disabled={submitting} className="btn-primary btn-lg">
+                  {submitting ? <Spinner className="h-5 w-5 text-white" /> : `Pay Rs. ${totalPrice}`}
                 </button>
               </div>
+              <p className="text-center text-xs text-ink-400">
+                Your e-ticket will be emailed to you after a successful payment.
+              </p>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-ink-400">{label}</p>
+      <p className="mt-0.5 font-semibold text-ink-900">{value ?? '—'}</p>
+    </div>
+  );
+}
+
+function Row({ label, value, valueClass = 'font-semibold text-ink-900' }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-ink-500">{label}</span>
+      <span className={valueClass}>{value || '—'}</span>
+    </div>
+  );
+}
+
+function Legend({ className, label }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className={`inline-block h-4 w-4 rounded ${className}`} />
+      {label}
+    </span>
   );
 }

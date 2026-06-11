@@ -1,103 +1,209 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { userAPI } from '../services/api';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { userAPI, getApiError } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { Spinner } from '../components/Spinner';
 
 export default function Login() {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [mode, setMode] = useState('email'); // 'email' | 'phone'
+  const [form, setForm] = useState({ email: '', phoneNumber: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Email-verification step (only used if the backend asks for a code).
+  const [verification, setVerification] = useState(null); // { id }
+  const [code, setCode] = useState('');
+  const [verifyMsg, setVerifyMsg] = useState('');
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from?.pathname || '/buses';
+  const justRegistered = location.state?.registered;
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
     try {
-      const response = await userAPI.login(formData);
-      localStorage.setItem('token', response.data.token);
-      const profileRes = await userAPI.getProfile();
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('user', JSON.stringify(profileRes.data.data.user));
-      navigate('/buses');
+      const payload =
+        mode === 'email'
+          ? { email: form.email.trim(), password: form.password }
+          : { phoneNumber: form.phoneNumber.trim(), password: form.password };
+
+      const res = await userAPI.login(payload);
+      const token = res?.data?.token;
+      if (!token) throw new Error('Login succeeded but no token was returned.');
+
+      await login(token);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      // Backend asks for email verification: it returns 401 + verificationId.
+      const verificationId = err?.response?.data?.verificationId;
+      if (verificationId) {
+        setVerification({ id: verificationId });
+        setVerifyMsg(getApiError(err, 'Please verify your email to continue.'));
+      } else {
+        setError(getApiError(err, 'Login failed. Please check your credentials.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await userAPI.verifyEmail(verification.id, { sixDigitVerificationCode: code });
+      // Verification only flags the account; sign in again to obtain a token.
+      setVerification(null);
+      setCode('');
+      setVerifyMsg('');
+      setError('');
+      await handleSubmit(e);
+    } catch (err) {
+      setError(getApiError(err, 'Verification failed. Check the 6-digit code.'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-center text-gray-600 mb-8">Sign in to your account</p>
+    <div className="container-app flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
+      <div className="w-full max-w-md animate-fade-in-up">
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Welcome back</h1>
+          <p className="mt-1 text-ink-500">Sign in to manage your trips and bookings.</p>
+        </div>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 flex items-start space-x-3">
-              <span className="text-2xl">⚠️</span>
+        <div className="card-pad">
+          {verification ? (
+            <form onSubmit={handleVerify} className="space-y-5">
+              {verifyMsg && <div className="alert-info">{verifyMsg}</div>}
+              {error && <div className="alert-error">{error}</div>}
               <div>
-                <p className="font-bold">Login Error</p>
-                <p className="text-sm">{error}</p>
+                <label className="label" htmlFor="code">
+                  6-digit verification code
+                </label>
+                <input
+                  id="code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  className="input-field tracking-[0.5em] text-center text-lg"
+                  placeholder="••••••"
+                  required
+                />
+                <p className="mt-2 text-xs text-ink-400">
+                  We sent a code to your email. Enter it to verify your account.
+                </p>
               </div>
-            </div>
+              <button type="submit" disabled={loading || code.length !== 6} className="btn-primary btn-block btn-lg">
+                {loading ? <Spinner className="h-5 w-5 text-white" /> : 'Verify & sign in'}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost btn-block"
+                onClick={() => {
+                  setVerification(null);
+                  setVerifyMsg('');
+                  setError('');
+                }}
+              >
+                Back to login
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {justRegistered && (
+                <div className="alert-success">
+                  Account created successfully — please sign in.
+                </div>
+              )}
+              {error && <div className="alert-error">{error}</div>}
+
+              <div className="flex rounded-xl bg-ink-100 p-1 text-sm font-medium">
+                {['email', 'phone'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`flex-1 rounded-lg py-2 capitalize transition ${
+                      mode === m ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+
+              {mode === 'email' ? (
+                <div>
+                  <label className="label" htmlFor="email">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="label" htmlFor="phoneNumber">
+                    Phone number
+                  </label>
+                  <input
+                    id="phoneNumber"
+                    type="tel"
+                    name="phoneNumber"
+                    value={form.phoneNumber}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="98XXXXXXXX"
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button type="submit" disabled={loading} className="btn-primary btn-block btn-lg">
+                {loading ? <Spinner className="h-5 w-5 text-white" /> : 'Sign in'}
+              </button>
+            </form>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-700">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-green-600 font-bold hover:text-green-700">
-                Register here
-              </Link>
-            </p>
-          </div>
+          <p className="mt-6 text-center text-sm text-ink-500">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="font-semibold text-brand-600 hover:text-brand-700">
+              Create one
+            </Link>
+          </p>
         </div>
       </div>
     </div>
