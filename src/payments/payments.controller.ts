@@ -17,6 +17,34 @@ import { AuthGuard, customExpressInterface } from 'src/users/users.guard';
 export class PaymentsController {
   constructor(private paymentService: PaymentsService) {}
 
+  // initiate a Khalti payment session for a booking; returns the payment_url to redirect to
+  @Post('/khalti/initiate/:bookingId')
+  @UseGuards(AuthGuard)
+  async initiateKhalti(
+    @Request() request: customExpressInterface,
+    @Param() params: any,
+  ): Promise<{
+    status: string;
+    message: string;
+    data: { pidx: string; payment_url: string; expires_in: number };
+  }> {
+    return this.paymentService.initiateKhaltiPaymentService(request, params);
+  }
+
+  // verify a Khalti payment (lookup) after the callback and confirm the booking
+  @Post('/khalti/verify')
+  @UseGuards(AuthGuard)
+  async verifyKhalti(
+    @Request() request: customExpressInterface,
+    @Body() requestBody: any,
+  ): Promise<{
+    status: string;
+    message: string;
+    data: { paymentId: string; status: string };
+  }> {
+    return this.paymentService.verifyKhaltiPaymentService(request, requestBody);
+  }
+
   // this complete payment route will complete the payment of the user's booked seats through booked id
   @Post('/:bookingId')
   @UseGuards(AuthGuard)

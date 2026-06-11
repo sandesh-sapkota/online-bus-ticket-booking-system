@@ -117,12 +117,23 @@ export default function Booking() {
       const bookingId = bookingRes?.data?.data?.bookingId;
       if (!bookingId) throw new Error('Booking did not return an id.');
 
+      if (paymentMethod === 'ONLINE') {
+        // Online → Khalti web checkout. Initiate, then redirect to Khalti.
+        const initRes = await paymentAPI.initiateKhalti(bookingId);
+        const paymentUrl = initRes?.data?.data?.payment_url;
+        if (!paymentUrl) throw new Error('Could not start the Khalti payment.');
+        // Remember the booking so the callback page can confirm it.
+        sessionStorage.setItem('pendingBookingId', bookingId);
+        window.location.href = paymentUrl;
+        return; // browser navigates away to Khalti
+      }
+
+      // Cash → mark as arranged at the counter (direct confirmation).
       await paymentAPI.processPayment(bookingId, {
-        method: paymentMethod,
+        method: 'CASH',
         amount: totalPrice,
         referenceCode: crypto.randomUUID(),
       });
-
       navigate('/bookings', { replace: true, state: { justBooked: true } });
     } catch (err) {
       setError(getApiError(err, 'Booking could not be completed. Please try again.'));
@@ -338,8 +349,8 @@ export default function Booking() {
                           : 'border-line hover:border-line2'
                       }`}
                     >
-                      <p className="font-semibold text-fg">{m === 'ONLINE' ? 'Online' : 'Cash'}</p>
-                      <p className="text-xs text-muted">{m === 'ONLINE' ? 'Pay securely now' : 'Pay at the counter'}</p>
+                      <p className="font-semibold text-fg">{m === 'ONLINE' ? 'Khalti' : 'Cash'}</p>
+                      <p className="text-xs text-muted">{m === 'ONLINE' ? 'Pay online via Khalti' : 'Pay at the counter'}</p>
                     </button>
                   ))}
                 </div>
@@ -350,7 +361,13 @@ export default function Booking() {
                   ← Back
                 </button>
                 <button onClick={handleConfirmAndPay} disabled={submitting} className="btn-primary btn-lg">
-                  {submitting ? <Spinner className="h-5 w-5 text-accent-fg" /> : `Pay Rs. ${totalPrice}`}
+                  {submitting ? (
+                    <Spinner className="h-5 w-5 text-accent-fg" />
+                  ) : paymentMethod === 'ONLINE' ? (
+                    `Pay with Khalti · Rs. ${totalPrice}`
+                  ) : (
+                    `Confirm · Rs. ${totalPrice}`
+                  )}
                 </button>
               </div>
               <p className="text-center text-xs text-faint">

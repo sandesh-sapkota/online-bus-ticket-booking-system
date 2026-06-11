@@ -6,6 +6,10 @@ This project is a learning project I built to explore the requirements and funct
 
 ---
 
+![alt text]({02331FCA-3482-4D78-AB04-F2B5C23C02F7}.png)
+
+![alt text]({2DE70D2A-C894-4E97-84D4-02EFD0CCCBE8}.png)
+
 ### Tech Stack Summary
 
 This project runs on the latest versions of the listed dependencies defined in the project's `package.json` file.

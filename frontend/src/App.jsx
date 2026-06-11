@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Buses from './pages/Buses';
 import Booking from './pages/Booking';
 import Bookings from './pages/Bookings';
+import PaymentCallback from './pages/PaymentCallback';
 
 function App() {
   return (
@@ -36,6 +37,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Bookings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment/callback"
+                element={
+                  <ProtectedRoute>
+                    <PaymentCallback />
                   </ProtectedRoute>
                 }
               />

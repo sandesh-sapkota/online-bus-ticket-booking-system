@@ -99,6 +99,9 @@ export const bookingAPI = {
 export const paymentAPI = {
   processPayment: (bookingId, data) => api.post(`/payments/${bookingId}`, data),
   getPayment: (paymentId) => api.get(`/payments/${paymentId}`),
+  // Khalti web checkout
+  initiateKhalti: (bookingId) => api.post(`/payments/khalti/initiate/${bookingId}`),
+  verifyKhalti: (data) => api.post('/payments/khalti/verify', data),
 };
 
 // ---- Ticket APIs ----
