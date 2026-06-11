@@ -221,8 +221,6 @@ export default function Buses() {
           </div>
         </form>
 
-        {error && <div className="alert-error mb-6">{error}</div>}
-
         {/* Results */}
         {loading ? (
           <div className="flex justify-center py-20">
@@ -230,6 +228,17 @@ export default function Buses() {
               <Spinner className="h-8 w-8 text-accent" />
               <p className="text-sm font-medium">Loading buses…</p>
             </div>
+          </div>
+        ) : error ? (
+          <div className="card-pad text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-soft text-2xl">
+              ⚠️
+            </div>
+            <p className="text-lg font-semibold text-fg">Couldn’t reach the server</p>
+            <p className="mt-1 text-muted">{error}</p>
+            <button onClick={() => fetchBuses(filters)} className="btn-primary mt-5">
+              Try again
+            </button>
           </div>
         ) : buses.length === 0 ? (
           <div className="card-pad text-center">
