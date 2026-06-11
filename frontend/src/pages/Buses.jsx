@@ -82,11 +82,11 @@ export default function Buses() {
   };
 
   return (
-    <div className="bg-ink-50 py-10">
+    <div className="bg-canvas py-10">
       <div className="container-app">
         <div className="mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Find your bus</h1>
-          <p className="mt-1 text-ink-500">Search routes and pick a seat that suits your journey.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-fg">Find your bus</h1>
+          <p className="mt-1 text-muted">Search routes and pick a seat that suits your journey.</p>
         </div>
 
         {/* Search & filters */}
@@ -148,9 +148,7 @@ export default function Buses() {
             <button type="button" onClick={handleReset} className="btn-secondary">
               Reset
             </button>
-            <p className="self-center text-xs text-ink-400">
-              Tip: enter both From and To to filter by route.
-            </p>
+            <p className="self-center text-xs text-faint">Tip: enter both From and To to filter by route.</p>
           </div>
         </form>
 
@@ -159,22 +157,24 @@ export default function Buses() {
         {/* Results */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="flex flex-col items-center gap-3 text-ink-500">
-              <Spinner className="h-8 w-8 text-brand-600" />
+            <div className="flex flex-col items-center gap-3 text-muted">
+              <Spinner className="h-8 w-8 text-accent" />
               <p className="text-sm font-medium">Loading buses…</p>
             </div>
           </div>
         ) : buses.length === 0 ? (
           <div className="card-pad text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-2xl">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface2 text-2xl">
               🚌
             </div>
-            <p className="text-lg font-semibold text-ink-800">No buses found</p>
-            <p className="mt-1 text-ink-500">Try adjusting your search filters and search again.</p>
+            <p className="text-lg font-semibold text-fg">No buses found</p>
+            <p className="mt-1 text-muted">Try adjusting your search filters and search again.</p>
           </div>
         ) : (
           <div className="grid gap-4">
-            <p className="text-sm text-ink-500">{buses.length} bus{buses.length !== 1 ? 'es' : ''} available</p>
+            <p className="text-sm text-muted">
+              {buses.length} bus{buses.length !== 1 ? 'es' : ''} available
+            </p>
             {buses.map((bus, idx) => {
               const soldOut = (bus.ticketsLeft ?? 0) <= 0;
               return (
@@ -183,7 +183,7 @@ export default function Buses() {
                   className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between animate-fade-in-up"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent-softfg">
                       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="4" width="18" height="13" rx="2" />
                         <path d="M3 10h18" strokeLinecap="round" />
@@ -196,22 +196,20 @@ export default function Buses() {
                         <span className="badge-brand">{BUS_TYPE_LABELS[bus.busType] ?? bus.busType ?? 'Bus'}</span>
                         <span className="badge-gray">{CLASS_LABELS[bus.busClass] ?? bus.busClass ?? '—'}</span>
                       </div>
-                      <p className="mt-1.5 text-sm text-ink-500">
-                        Departs · {formatDeparture(bus.estimatedDepurtureTimeDate)}
-                      </p>
+                      <p className="mt-1.5 text-sm text-muted">Departs · {formatDeparture(bus.estimatedDepurtureTimeDate)}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6">
                     <div className="text-center">
-                      <p className="text-xs uppercase tracking-wide text-ink-400">Seats left</p>
-                      <p className={`text-lg font-bold ${soldOut ? 'text-rose-500' : 'text-emerald-600'}`}>
+                      <p className="text-xs uppercase tracking-wide text-faint">Seats left</p>
+                      <p className={`text-lg font-bold ${soldOut ? 'text-danger' : 'text-success'}`}>
                         {soldOut ? 'Sold out' : bus.ticketsLeft}
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs uppercase tracking-wide text-ink-400">Fare</p>
-                      <p className="text-lg font-bold text-ink-900">Rs. {bus.farePerTicket ?? '—'}</p>
+                      <p className="text-xs uppercase tracking-wide text-faint">Fare</p>
+                      <p className="text-lg font-bold text-fg">Rs. {bus.farePerTicket ?? '—'}</p>
                     </div>
                     <button
                       onClick={() => goToBooking(bus.scheduleId)}

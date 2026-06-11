@@ -75,7 +75,6 @@ export default function Booking() {
       try {
         const res = await busAPI.getBus(scheduleId, date);
         setBus(res?.data?.data ?? null);
-        // Reset any seats picked for a previous date.
         setSelectedSeats([]);
       } catch (err) {
         setError(getApiError(err, 'Failed to load bus details.'));
@@ -110,7 +109,6 @@ export default function Booking() {
 
     setSubmitting(true);
     try {
-      // 1) Create the booking.
       const bookingRes = await bookingAPI.createBooking({
         scheduleId,
         journeyDate,
@@ -119,7 +117,6 @@ export default function Booking() {
       const bookingId = bookingRes?.data?.data?.bookingId;
       if (!bookingId) throw new Error('Booking did not return an id.');
 
-      // 2) Complete payment. Amount must equal the server-side total; reference must be 36 chars.
       await paymentAPI.processPayment(bookingId, {
         method: paymentMethod,
         amount: totalPrice,
@@ -142,8 +139,8 @@ export default function Booking() {
     return (
       <div className="container-app py-16">
         <div className="card-pad mx-auto max-w-lg text-center">
-          <p className="text-lg font-semibold text-ink-800">Bus unavailable</p>
-          <p className="mt-1 text-ink-500">{error || 'We could not load this bus.'}</p>
+          <p className="text-lg font-semibold text-fg">Bus unavailable</p>
+          <p className="mt-1 text-muted">{error || 'We could not load this bus.'}</p>
           <button onClick={() => navigate('/buses')} className="btn-primary mt-5">
             Back to buses
           </button>
@@ -153,14 +150,14 @@ export default function Booking() {
   }
 
   return (
-    <div className="bg-ink-50 py-10">
+    <div className="bg-canvas py-10">
       <div className="container-app max-w-4xl">
         <button onClick={() => navigate('/buses')} className="btn-ghost mb-4 -ml-2">
           ← All buses
         </button>
 
-        <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Book your trip</h1>
-        <p className="mt-1 text-ink-500">
+        <h1 className="text-3xl font-extrabold tracking-tight text-fg">Book your trip</h1>
+        <p className="mt-1 text-muted">
           {bus.route?.origin && bus.route?.destination
             ? `${bus.route.origin} → ${bus.route.destination}`
             : 'Select your date and seats to continue.'}
@@ -173,17 +170,15 @@ export default function Booking() {
               <div className="flex items-center gap-2">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition ${
-                    i <= step ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-500'
+                    i <= step ? 'bg-accent text-accent-fg' : 'bg-surface2 text-faint'
                   }`}
                 >
                   {i + 1}
                 </span>
-                <span className={`text-sm font-medium ${i <= step ? 'text-ink-900' : 'text-ink-400'}`}>
-                  {label}
-                </span>
+                <span className={`text-sm font-medium ${i <= step ? 'text-fg' : 'text-faint'}`}>{label}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`mx-3 h-0.5 flex-1 ${i < step ? 'bg-brand-600' : 'bg-ink-200'}`} />
+                <div className={`mx-3 h-0.5 flex-1 ${i < step ? 'bg-accent' : 'bg-line'}`} />
               )}
             </div>
           ))}
@@ -195,7 +190,7 @@ export default function Booking() {
           {/* Step 1: Trip + date */}
           {step === 0 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-ink-900">Trip details</h2>
+              <h2 className="text-xl font-bold text-fg">Trip details</h2>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <Detail label="Type" value={BUS_TYPE_LABELS[bus.busType] ?? bus.busType} />
                 <Detail label="Class" value={CLASS_LABELS[bus.busClass] ?? bus.busClass} />
@@ -229,7 +224,7 @@ export default function Booking() {
                   onChange={(e) => setJourneyDate(e.target.value)}
                   className="input-field max-w-xs"
                 />
-                <p className="mt-2 text-xs text-ink-400">Seat availability is shown for the selected date.</p>
+                <p className="mt-2 text-xs text-faint">Seat availability is shown for the selected date.</p>
               </div>
 
               <div className="flex justify-end">
@@ -244,19 +239,19 @@ export default function Booking() {
           {step === 1 && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-ink-900">Select seats</h2>
-                {loading && <Spinner className="h-5 w-5 text-brand-600" />}
+                <h2 className="text-xl font-bold text-fg">Select seats</h2>
+                {loading && <Spinner className="h-5 w-5 text-accent" />}
               </div>
 
               {/* Legend */}
-              <div className="flex flex-wrap gap-4 text-sm text-ink-600">
-                <Legend className="bg-white border border-ink-300" label="Available" />
-                <Legend className="bg-brand-600" label="Selected" />
-                <Legend className="bg-ink-200" label="Booked" />
+              <div className="flex flex-wrap gap-4 text-sm text-muted">
+                <Legend className="bg-surface border border-line2" label="Available" />
+                <Legend className="bg-accent" label="Selected" />
+                <Legend className="bg-surface2" label="Booked" />
               </div>
 
               {seatNumbers.length === 0 ? (
-                <p className="text-ink-500">No seat map available for this bus.</p>
+                <p className="text-muted">No seat map available for this bus.</p>
               ) : (
                 <div className="grid grid-cols-5 gap-2.5 sm:grid-cols-8">
                   {seatNumbers.map((seat) => {
@@ -270,10 +265,10 @@ export default function Booking() {
                         disabled={isTaken}
                         className={`aspect-square rounded-lg text-sm font-semibold transition ${
                           isTaken
-                            ? 'cursor-not-allowed bg-ink-200 text-ink-400'
+                            ? 'cursor-not-allowed bg-surface2 text-faint'
                             : isSelected
-                              ? 'bg-brand-600 text-white shadow-sm'
-                              : 'border border-ink-300 bg-white text-ink-700 hover:border-brand-400 hover:bg-brand-50'
+                              ? 'bg-accent text-accent-fg shadow-sm'
+                              : 'border border-line2 bg-surface text-fg hover:border-accent hover:bg-accent-soft'
                         }`}
                       >
                         {seat}
@@ -283,17 +278,17 @@ export default function Booking() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 rounded-xl bg-ink-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-ink-600">
+              <div className="flex flex-col gap-2 rounded-xl bg-surface2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted">
                   {selectedSeats.length > 0 ? (
                     <>
-                      Seats <span className="font-semibold text-ink-900">{selectedSeats.join(', ')}</span>
+                      Seats <span className="font-semibold text-fg">{selectedSeats.join(', ')}</span>
                     </>
                   ) : (
                     'No seats selected yet.'
                   )}
                 </p>
-                <p className="text-lg font-bold text-ink-900">Total: Rs. {totalPrice}</p>
+                <p className="text-lg font-bold text-fg">Total: Rs. {totalPrice}</p>
               </div>
 
               <div className="flex justify-between gap-3">
@@ -310,23 +305,22 @@ export default function Booking() {
           {/* Step 3: Payment */}
           {step === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-ink-900">Review & pay</h2>
+              <h2 className="text-xl font-bold text-fg">Review & pay</h2>
 
-              <div className="space-y-3 rounded-xl border border-ink-100 bg-ink-50 p-5">
-                <Row label="Route" value={
-                  bus.route?.origin && bus.route?.destination
-                    ? `${bus.route.origin} → ${bus.route.destination}`
-                    : '—'
-                } />
+              <div className="space-y-3 rounded-xl border border-line bg-surface2 p-5">
+                <Row
+                  label="Route"
+                  value={
+                    bus.route?.origin && bus.route?.destination
+                      ? `${bus.route.origin} → ${bus.route.destination}`
+                      : '—'
+                  }
+                />
                 <Row label="Date" value={journeyDate} />
                 <Row label="Seats" value={selectedSeats.join(', ')} />
                 <Row label="Passengers" value={`${selectedSeats.length}`} />
-                <div className="border-t border-ink-200 pt-3">
-                  <Row
-                    label="Total amount"
-                    value={`Rs. ${totalPrice}`}
-                    valueClass="text-xl font-extrabold text-brand-700"
-                  />
+                <div className="border-t border-line2 pt-3">
+                  <Row label="Total amount" value={`Rs. ${totalPrice}`} valueClass="text-xl font-extrabold text-accent" />
                 </div>
               </div>
 
@@ -340,14 +334,12 @@ export default function Booking() {
                       onClick={() => setPaymentMethod(m)}
                       className={`rounded-xl border p-4 text-left transition ${
                         paymentMethod === m
-                          ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
-                          : 'border-ink-200 hover:border-ink-300'
+                          ? 'border-accent bg-accent-soft ring-2 ring-accent/20'
+                          : 'border-line hover:border-line2'
                       }`}
                     >
-                      <p className="font-semibold text-ink-900">{m === 'ONLINE' ? 'Online' : 'Cash'}</p>
-                      <p className="text-xs text-ink-500">
-                        {m === 'ONLINE' ? 'Pay securely now' : 'Pay at the counter'}
-                      </p>
+                      <p className="font-semibold text-fg">{m === 'ONLINE' ? 'Online' : 'Cash'}</p>
+                      <p className="text-xs text-muted">{m === 'ONLINE' ? 'Pay securely now' : 'Pay at the counter'}</p>
                     </button>
                   ))}
                 </div>
@@ -358,10 +350,10 @@ export default function Booking() {
                   ← Back
                 </button>
                 <button onClick={handleConfirmAndPay} disabled={submitting} className="btn-primary btn-lg">
-                  {submitting ? <Spinner className="h-5 w-5 text-white" /> : `Pay Rs. ${totalPrice}`}
+                  {submitting ? <Spinner className="h-5 w-5 text-accent-fg" /> : `Pay Rs. ${totalPrice}`}
                 </button>
               </div>
-              <p className="text-center text-xs text-ink-400">
+              <p className="text-center text-xs text-faint">
                 Your e-ticket will be emailed to you after a successful payment.
               </p>
             </div>
@@ -375,16 +367,16 @@ export default function Booking() {
 function Detail({ label, value }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-ink-400">{label}</p>
-      <p className="mt-0.5 font-semibold text-ink-900">{value ?? '—'}</p>
+      <p className="text-xs uppercase tracking-wide text-faint">{label}</p>
+      <p className="mt-0.5 font-semibold text-fg">{value ?? '—'}</p>
     </div>
   );
 }
 
-function Row({ label, value, valueClass = 'font-semibold text-ink-900' }) {
+function Row({ label, value, valueClass = 'font-semibold text-fg' }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-ink-500">{label}</span>
+      <span className="text-sm text-muted">{label}</span>
       <span className={valueClass}>{value || '—'}</span>
     </div>
   );

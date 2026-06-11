@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800">
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900">
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white,transparent_40%),radial-gradient(circle_at_80%_0%,white,transparent_35%)]" />
         <div className="container-app relative py-20 sm:py-28">
           <div className="mx-auto max-w-3xl text-center text-white animate-fade-in-up">
@@ -32,7 +32,7 @@ export default function Home() {
               Compare buses, pick your seat, and book in minutes — comfortable rides at unbeatable prices.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/buses" className="btn bg-white text-brand-700 hover:bg-brand-50 btn-lg">
+              <Link to="/buses" className="btn bg-white text-brand-800 hover:bg-brand-50 btn-lg">
                 Find buses
               </Link>
               {!isAuthenticated && (
@@ -57,19 +57,19 @@ export default function Home() {
       {/* Features */}
       <section className="container-app py-16 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-ink-900">Why travel with BusGo?</h2>
-          <p className="mt-3 text-ink-500">Everything you need for a smooth booking experience.</p>
+          <h2 className="text-3xl font-extrabold tracking-tight text-fg">Why travel with BusGo?</h2>
+          <p className="mt-3 text-muted">Everything you need for a smooth booking experience.</p>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
             <div key={f.title} className="card p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-softfg">
                 <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d={f.icon} />
                 </svg>
               </div>
-              <h3 className="mt-4 text-lg font-bold text-ink-900">{f.title}</h3>
-              <p className="mt-1 text-sm text-ink-500">{f.desc}</p>
+              <h3 className="mt-4 text-lg font-bold text-fg">{f.title}</h3>
+              <p className="mt-1 text-sm text-muted">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -77,12 +77,12 @@ export default function Home() {
 
       {/* CTA */}
       <section className="container-app pb-20">
-        <div className="rounded-3xl bg-ink-900 px-8 py-14 text-center text-white sm:px-16">
+        <div className="rounded-3xl bg-fg px-8 py-14 text-center text-canvas sm:px-16">
           <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Ready to travel?</h2>
-          <p className="mx-auto mt-3 max-w-xl text-ink-300">
+          <p className="mx-auto mt-3 max-w-xl opacity-80">
             Join thousands of happy travelers booking their trips the easy way.
           </p>
-          <Link to="/buses" className="btn-primary btn-lg mt-7 inline-flex">
+          <Link to="/buses" className="btn bg-accent text-accent-fg hover:bg-accent-hover btn-lg mt-7 inline-flex">
             Book your ticket now
           </Link>
         </div>

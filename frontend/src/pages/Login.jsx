@@ -40,7 +40,6 @@ export default function Login() {
       await login(token);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      // Backend asks for email verification: it returns 401 + verificationId.
       const verificationId = err?.response?.data?.verificationId;
       if (verificationId) {
         setVerification({ id: verificationId });
@@ -59,7 +58,6 @@ export default function Login() {
     setError('');
     try {
       await userAPI.verifyEmail(verification.id, { sixDigitVerificationCode: code });
-      // Verification only flags the account; sign in again to obtain a token.
       setVerification(null);
       setCode('');
       setVerifyMsg('');
@@ -76,8 +74,8 @@ export default function Login() {
     <div className="container-app flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
       <div className="w-full max-w-md animate-fade-in-up">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Welcome back</h1>
-          <p className="mt-1 text-ink-500">Sign in to manage your trips and bookings.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-fg">Welcome back</h1>
+          <p className="mt-1 text-muted">Sign in to manage your trips and bookings.</p>
         </div>
 
         <div className="card-pad">
@@ -99,12 +97,12 @@ export default function Login() {
                   placeholder="••••••"
                   required
                 />
-                <p className="mt-2 text-xs text-ink-400">
+                <p className="mt-2 text-xs text-faint">
                   We sent a code to your email. Enter it to verify your account.
                 </p>
               </div>
               <button type="submit" disabled={loading || code.length !== 6} className="btn-primary btn-block btn-lg">
-                {loading ? <Spinner className="h-5 w-5 text-white" /> : 'Verify & sign in'}
+                {loading ? <Spinner className="h-5 w-5 text-accent-fg" /> : 'Verify & sign in'}
               </button>
               <button
                 type="button"
@@ -121,20 +119,18 @@ export default function Login() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               {justRegistered && (
-                <div className="alert-success">
-                  Account created successfully — please sign in.
-                </div>
+                <div className="alert-success">Account created successfully — please sign in.</div>
               )}
               {error && <div className="alert-error">{error}</div>}
 
-              <div className="flex rounded-xl bg-ink-100 p-1 text-sm font-medium">
+              <div className="flex rounded-xl bg-surface2 p-1 text-sm font-medium">
                 {['email', 'phone'].map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setMode(m)}
                     className={`flex-1 rounded-lg py-2 capitalize transition ${
-                      mode === m ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-500 hover:text-ink-700'
+                      mode === m ? 'bg-surface text-accent shadow-sm' : 'text-muted hover:text-fg'
                     }`}
                   >
                     {m}
@@ -193,14 +189,14 @@ export default function Login() {
               </div>
 
               <button type="submit" disabled={loading} className="btn-primary btn-block btn-lg">
-                {loading ? <Spinner className="h-5 w-5 text-white" /> : 'Sign in'}
+                {loading ? <Spinner className="h-5 w-5 text-accent-fg" /> : 'Sign in'}
               </button>
             </form>
           )}
 
-          <p className="mt-6 text-center text-sm text-ink-500">
+          <p className="mt-6 text-center text-sm text-muted">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-semibold text-brand-600 hover:text-brand-700">
+            <Link to="/register" className="font-semibold text-accent hover:text-accent-hover">
               Create one
             </Link>
           </p>

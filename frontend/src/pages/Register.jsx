@@ -47,10 +47,7 @@ export default function Register() {
         phoneNumber: form.phoneNumber.trim(),
         password: form.password,
       });
-      navigate('/login', {
-        replace: true,
-        state: { registered: true },
-      });
+      navigate('/login', { replace: true, state: { registered: true } });
     } catch (err) {
       setError(getApiError(err, 'Registration failed. Please try again.'));
     } finally {
@@ -62,8 +59,8 @@ export default function Register() {
     <div className="container-app flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
       <div className="w-full max-w-lg animate-fade-in-up">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">Create your account</h1>
-          <p className="mt-1 text-ink-500">Join BusGo and book your next trip in minutes.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-fg">Create your account</h1>
+          <p className="mt-1 text-muted">Join BusGo and book your next trip in minutes.</p>
         </div>
 
         <div className="card-pad">
@@ -150,13 +147,13 @@ export default function Register() {
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary btn-block btn-lg">
-              {loading ? <Spinner className="h-5 w-5 text-white" /> : 'Create account'}
+              {loading ? <Spinner className="h-5 w-5 text-accent-fg" /> : 'Create account'}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-ink-500">
+          <p className="mt-6 text-center text-sm text-muted">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700">
+            <Link to="/login" className="font-semibold text-accent hover:text-accent-hover">
               Sign in
             </Link>
           </p>

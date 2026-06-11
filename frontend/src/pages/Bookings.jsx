@@ -50,12 +50,12 @@ export default function Bookings() {
   }, []);
 
   return (
-    <div className="bg-ink-50 py-10">
+    <div className="bg-canvas py-10">
       <div className="container-app">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-ink-900">My bookings</h1>
-            <p className="mt-1 text-ink-500">Your upcoming and active trips.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-fg">My bookings</h1>
+            <p className="mt-1 text-muted">Your upcoming and active trips.</p>
           </div>
           <Link to="/buses" className="btn-primary hidden sm:inline-flex">
             Book a trip
@@ -69,7 +69,7 @@ export default function Bookings() {
               <p className="font-semibold">Booking confirmed!</p>
               <p>Your e-ticket has been emailed to you.</p>
             </div>
-            <button onClick={() => setShowSuccess(false)} className="ml-auto text-emerald-700/70 hover:text-emerald-900">
+            <button onClick={() => setShowSuccess(false)} className="ml-auto opacity-70 hover:opacity-100">
               ✕
             </button>
           </div>
@@ -79,18 +79,18 @@ export default function Bookings() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="flex flex-col items-center gap-3 text-ink-500">
-              <Spinner className="h-8 w-8 text-brand-600" />
+            <div className="flex flex-col items-center gap-3 text-muted">
+              <Spinner className="h-8 w-8 text-accent" />
               <p className="text-sm font-medium">Loading bookings…</p>
             </div>
           </div>
         ) : bookings.length === 0 ? (
           <div className="card-pad text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-2xl">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface2 text-2xl">
               🎫
             </div>
-            <p className="text-lg font-semibold text-ink-800">No bookings yet</p>
-            <p className="mt-1 text-ink-500">When you book a trip, it will show up here.</p>
+            <p className="text-lg font-semibold text-fg">No bookings yet</p>
+            <p className="mt-1 text-muted">When you book a trip, it will show up here.</p>
             <Link to="/buses" className="btn-primary mt-5 inline-flex">
               Find a bus
             </Link>
@@ -104,27 +104,27 @@ export default function Bookings() {
                     <span className="badge-brand">Trip</span>
                     <span className="badge-gray">#{b.bookingId.slice(0, 8)}</span>
                   </div>
-                  <span className="text-sm font-semibold text-ink-700">
+                  <span className="text-sm font-semibold text-fg">
                     {b.totalSeats} seat{b.totalSeats !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 <div className="mt-4 flex items-center gap-3">
                   <div className="text-center">
-                    <p className="text-base font-bold text-ink-900">{b.origin || '—'}</p>
-                    <p className="text-xs text-ink-400">From</p>
+                    <p className="text-fg font-bold text-fg">{b.origin || '—'}</p>
+                    <p className="text-xs text-faint">From</p>
                   </div>
-                  <div className="flex-1 border-t-2 border-dashed border-ink-200" />
-                  <span className="text-brand-500">→</span>
-                  <div className="flex-1 border-t-2 border-dashed border-ink-200" />
+                  <div className="flex-1 border-t-2 border-dashed border-line2" />
+                  <span className="text-accent">→</span>
+                  <div className="flex-1 border-t-2 border-dashed border-line2" />
                   <div className="text-center">
-                    <p className="text-base font-bold text-ink-900">{b.destination || '—'}</p>
-                    <p className="text-xs text-ink-400">To</p>
+                    <p className="text-fg font-bold text-fg">{b.destination || '—'}</p>
+                    <p className="text-xs text-faint">To</p>
                   </div>
                 </div>
 
-                <div className="mt-4 border-t border-ink-100 pt-3 text-sm text-ink-500">
-                  Departs · <span className="font-medium text-ink-700">{formatDate(b.estimatedDepertureTimeDate)}</span>
+                <div className="mt-4 border-t border-line pt-3 text-sm text-muted">
+                  Departs · <span className="font-medium text-fg">{formatDate(b.estimatedDepertureTimeDate)}</span>
                 </div>
               </div>
             ))}
